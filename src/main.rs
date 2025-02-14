@@ -1,57 +1,40 @@
 use actix_web::{web, App, HttpServer};
 use dotenv::dotenv;
-use crate::utils::logger::setup_logger;
-use crate::utils::config_validator::validate_required_env_vars;
-
-mod application;
-mod config;
-mod db;
-mod domain;
-mod infrastructure;
-mod presentation;
-mod utils;
-
-use presentation::api::auth_controller::{login, register};
-use presentation::api::user_controller::get_profile;  // Add this import
-use config::Config;
-use db::establish_connection;
-use infrastructure::persistence::postgres_user_repository::PostgresUserRepository;
-use application::services::auth_application_service::AuthApplicationService;
-use application::services::user_application_service::UserApplicationService;
+use sqlx::postgres::PgPoolOptions;
 use actix_web::middleware::Logger;
-use infrastructure::auth::middleware::AuthMiddleware;  // Fix this import
-use utils::middleware::LoggingMiddleware;
 
-// Remove the duplicate import:
-// use utils::{
-//     logger::setup_logger,
-//     config_validator::validate_required_env_vars,
-//     middleware::{request_logging, LoggingMiddleware},
-// };
+mod domains;
+mod shared;
+
+use crate::domains::auth::controller::{login, register};
+use crate::domains::user::controller::get_profile;
+use crate::shared::config::Config;
+use crate::shared::middleware::logger::setup_logger;
+use crate::shared::middleware::auth::AuthMiddleware;
+use crate::shared::middleware::logger::LoggingMiddleware;
+use crate::domains::user::repository::PostgresUserRepository;
+use crate::domains::auth::service::AuthService;
+use crate::domains::user::service::UserService;
+use crate::domains::auth::route as auth_routes;
+use crate::domains::user::route as user_routes;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
     setup_logger();
 
-    if let Err(e) = validate_required_env_vars() {
-        log::error!("Configuration error: {}", e);
-        std::process::exit(1);
-    }
-
-    let config = Config::from_env();
+    let config = Config::from_env()
+        .expect("Failed to load configuration");
     
-    let pool = match establish_connection().await {
-        Ok(pool) => pool,
-        Err(e) => {
-            log::error!("Failed to connect to database: {}", e);
-            std::process::exit(1);
-        }
-    };
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&config.database_url)
+        .await
+        .expect("Failed to connect to database");
 
     let user_repository = PostgresUserRepository::new(pool.clone());
-    let auth_service = web::Data::new(AuthApplicationService::new(user_repository.clone()));
-    let user_service = web::Data::new(UserApplicationService::new(user_repository));
+    let auth_service = web::Data::new(AuthService::new(user_repository.clone(), config.jwt_secret.clone()));
+    let user_service = web::Data::new(UserService::new(user_repository));
 
     let server = HttpServer::new(move || {
         App::new()
@@ -61,19 +44,14 @@ async fn main() -> std::io::Result<()> {
             .app_data(user_service.clone())
             .service(
                 web::scope("/api")
-                    .service(register)
-                    .service(login)
-                    .service(
-                        web::scope("/users")
-                            .wrap(AuthMiddleware::new())
-                            .service(get_profile)
-                    )
+                    .configure(auth_routes::configure)
+                    .configure(user_routes::configure)
             )
     })
-    .bind(format!("127.0.0.1:{}", config.port))?
+    .bind(&config.server_addr)?
     .run();
 
-    log::info!("Server running at http://127.0.0.1:{}", config.port);
+    log::info!("Server running at http://127.0.0.1:{}", config.server_addr);
 
     server.await
 }
