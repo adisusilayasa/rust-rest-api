@@ -4,12 +4,12 @@ A modern REST API built with Rust, following clean architecture principles and b
 
 ## Features
 
-- Clean Architecture implementation
-- JWT Authentication
+- Clean Architecture implementation with Domain-Driven Design
+- JWT Authentication with middleware protection
 - PostgreSQL integration with SQLx
 - RESTful endpoints
-- Error handling
-- Input validation
+- Structured error handling
+- Logging middleware
 - Async/await support
 
 ## Tech Stack
@@ -19,22 +19,24 @@ A modern REST API built with Rust, following clean architecture principles and b
 - Tokio: Async runtime
 - Serde: Serialization/Deserialization
 - JWT: Authentication
-- Validator: Input validation
+- bcrypt: Password hashing
 - Chrono: DateTime handling
 - UUID: Unique identifiers
+- env_logger: Logging
 
 ## Project Structure
 
 ```plaintext
 src/
-├── application/     # Application services
-├── config/         # Configuration
-├── db/            # Database setup
-├── domain/        # Business logic and entities
-├── infrastructure/ # External services implementation
-├── presentation/  # HTTP handlers and routes
-├── repositories/  # Data access layer
-└── utils/         # Shared utilities
+├── domains/           # Domain-driven modules
+│   ├── auth/         # Authentication domain
+│   └── user/         # User domain
+├── shared/           # Shared components
+│   ├── auth/        # Authentication utilities
+│   ├── config/      # Configuration
+│   ├── error/       # Error handling
+│   └── middleware/  # Middleware components
+└── main.rs          # Application entry point
 ```
 
 ## Getting Started
