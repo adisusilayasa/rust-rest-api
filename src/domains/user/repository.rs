@@ -2,14 +2,6 @@ use sqlx::PgPool;
 use uuid::Uuid;
 use crate::domains::user::entity::User;
 
-pub struct PostgresUserRepository {
-    pool: PgPool,
-}
-
-pub fn new_repository(pool: PgPool) -> PostgresUserRepository {
-    PostgresUserRepository { pool }
-}
-
 pub async fn create_user(pool: &PgPool, user: &User) -> Result<User, String> {
     sqlx::query_as!(
         User,
