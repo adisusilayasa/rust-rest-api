@@ -4,13 +4,13 @@ A modern REST API built with Rust, following clean architecture principles and b
 
 ## Features
 
-- Clean Architecture implementation with Domain-Driven Design
+- Clean Architecture with Domain-Driven Design
 - JWT Authentication with middleware protection
 - PostgreSQL integration with SQLx
 - RESTful endpoints
 - Structured error handling
 - Logging middleware
-- Async/await support
+- Hot reload development support
 
 ## Tech Stack
 
@@ -28,15 +28,24 @@ A modern REST API built with Rust, following clean architecture principles and b
 
 ```plaintext
 src/
-├── domains/           # Domain-driven modules
-│   ├── auth/         # Authentication domain
-│   └── user/         # User domain
-├── shared/           # Shared components
-│   ├── auth/        # Authentication utilities
-│   ├── config/      # Configuration
-│   ├── error/       # Error handling
-│   └── middleware/  # Middleware components
-└── main.rs          # Application entry point
+├── config/           # Configuration management
+├── db/              # Database connection handling
+├── domains/         # Domain-driven modules
+│   ├── auth/       # Authentication domain
+│   │   ├── controller.rs
+│   │   ├── route.rs
+│   │   └── service.rs
+│   └── user/       # User domain
+│       ├── controller.rs
+│       ├── dto.rs
+│       ├── entity.rs
+│       ├── repository.rs
+│       ├── route.rs
+│       └── service.rs
+└── utils/          # Shared utilities
+    ├── auth.rs     # Authentication utilities
+    ├── error.rs    # Error handling
+    └── middleware/ # Middleware components
 ```
 
 ## Getting Started
@@ -45,7 +54,7 @@ src/
 
 - Rust (latest stable)
 - PostgreSQL
-- Docker (optional)
+- SQLx CLI (`cargo install sqlx-cli`)
 
 ### Installation
 
@@ -60,41 +69,55 @@ cd rust-rest
 cp .env.example .env
 ```
 
-3. Update the `.env` file with your database credentials
+3. Update the `.env` file with your configuration:
+```plaintext
+DATABASE_URL=postgresql://app_user:password@localhost:5432/rust_rest
+JWT_SECRET=your_jwt_secret_key
+PORT=8080
+```
 
-4. Run the migrations:
+4. Setup the database:
 ```bash
 sqlx database create
 sqlx migrate run
 ```
 
-5. Build and run the project:
+5. Run the project:
 ```bash
 cargo run
 ```
 
 ## API Documentation
 
-The API will be available at `http://localhost:8080`
+The API is available at `http://localhost:8080/api`
 
 ### Available Endpoints
 
-- `POST /auth/register` - Register a new user
-- `POST /auth/login` - Login user
-- More endpoints documentation coming soon...
+#### Authentication
+- `POST /api/auth/register` - Register a new user
+- `POST /api/auth/login` - Login user
+
+#### User Management
+- `GET /api/user/profile` - Get user profile (Protected)
+- `PUT /api/user/profile` - Update user profile (Protected)
+
+### Authentication
+
+Protected endpoints require a JWT token in the Authorization header:
+```
+Authorization: Bearer <token>
+```
 
 ## Development
 
-To run in development mode with auto-reload:
-
+Run with hot reload:
 ```bash
 cargo watch -x run
 ```
 
 ## Testing
 
-Run the tests with:
-
+Run the tests:
 ```bash
 cargo test
 ```
@@ -102,13 +125,3 @@ cargo test
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details
-```
-
-This README provides:
-1. Project overview
-2. Features list
-3. Technology stack
-4. Project structure
-5. Setup instructions
-6. Development guidelines
-7. API documentation
