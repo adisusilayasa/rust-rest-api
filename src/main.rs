@@ -6,11 +6,8 @@ use actix_web::middleware::Logger;
 mod domains;
 mod shared;
 
-use crate::domains::auth::controller::{login, register};
-use crate::domains::user::controller::get_profile;
 use crate::shared::config::Config;
 use crate::shared::middleware::logger::setup_logger;
-use crate::shared::middleware::auth::AuthMiddleware;
 use crate::shared::middleware::logger::LoggingMiddleware;
 use crate::domains::user::repository::PostgresUserRepository;
 use crate::domains::auth::service::AuthService;
