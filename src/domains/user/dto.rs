@@ -7,15 +7,21 @@ use crate::domains::user::entity::User;
 pub struct UserProfileResponse {
     pub id: Uuid,
     pub email: String,
+    pub phone: Option<String>,
+    pub address: Option<String>,
     pub created_at: DateTime<Utc>,
+    pub updated_at: Option<DateTime<Utc>>,
+    pub deleted_at: Option<DateTime<Utc>>,
 }
 
-impl From<User> for UserProfileResponse {
-    fn from(user: User) -> Self {
-        Self {
-            id: user.id,
-            email: user.email,
-            created_at: user.created_at,
-        }
+pub fn create_user_profile_response(user: User) -> UserProfileResponse {
+    UserProfileResponse {
+        id: user.id,
+        email: user.email,
+        phone: user.phone,
+        address: user.address,
+        created_at: user.created_at,
+        updated_at: user.updated_at,
+        deleted_at: user.deleted_at,
     }
 }

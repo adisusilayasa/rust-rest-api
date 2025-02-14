@@ -1,11 +1,12 @@
 use actix_web::web;
 use super::controller;
-use crate::shared::middleware::auth::AuthMiddleware;
+use crate::utils::middleware::auth::AuthMiddleware;
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/user")
             .wrap(AuthMiddleware::new())
-            .service(controller::get_profile)
+            .service(controller::handle_get_profile)
+            .service(controller::handle_update_profile)
     );
 }

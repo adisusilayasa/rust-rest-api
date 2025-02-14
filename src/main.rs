@@ -4,14 +4,11 @@ use sqlx::postgres::PgPoolOptions;
 use actix_web::middleware::Logger;
 
 mod domains;
-mod shared;
+mod utils;
 
-use crate::shared::config::Config;
-use crate::shared::middleware::logger::setup_logger;
-use crate::shared::middleware::logger::LoggingMiddleware;
-use crate::domains::user::repository::PostgresUserRepository;
-use crate::domains::auth::service::AuthService;
-use crate::domains::user::service::UserService;
+use crate::utils::config::Config;
+use crate::utils::middleware::logger::setup_logger;
+use crate::utils::middleware::logger::LoggingMiddleware;
 use crate::domains::auth::route as auth_routes;
 use crate::domains::user::route as user_routes;
 
@@ -29,16 +26,13 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("Failed to connect to database");
 
-    let user_repository = PostgresUserRepository::new(pool.clone());
-    let auth_service = web::Data::new(AuthService::new(user_repository.clone(), config.jwt_secret.clone()));
-    let user_service = web::Data::new(UserService::new(user_repository));
+    let pool = web::Data::new(pool);
 
     let server = HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
             .wrap(LoggingMiddleware::new())
-            .app_data(auth_service.clone())
-            .app_data(user_service.clone())
+            .app_data(pool.clone())
             .service(
                 web::scope("/api")
                     .configure(auth_routes::configure)

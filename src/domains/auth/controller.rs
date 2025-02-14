@@ -1,8 +1,8 @@
 use actix_web::{post, web, HttpResponse};
 use serde::Deserialize;
-use crate::domains::auth::service::AuthService;
-use crate::domains::user::repository::PostgresUserRepository;
-use crate::shared::error::AppError;
+use sqlx::PgPool;
+use crate::domains::auth::service::{register_user, login_user};
+use crate::utils::error::AppError;
 use serde_json::json;
 
 #[derive(Deserialize)]
@@ -12,19 +12,29 @@ pub struct AuthRequest {
 }
 
 #[post("/register")]
-pub async fn register(
-    auth_service: web::Data<AuthService<PostgresUserRepository>>,
+pub async fn handle_register(
+    pool: web::Data<PgPool>,
     req: web::Json<AuthRequest>,
 ) -> Result<HttpResponse, AppError> {
-    let user = auth_service.register(req.email.clone(), req.password.clone()).await?;
+    let user = register_user(
+        pool.get_ref(),
+        req.email.clone(),
+        req.password.clone()
+    ).await?;
+    
     Ok(HttpResponse::Created().json(user))
 }
 
 #[post("/login")]
-pub async fn login(
-    auth_service: web::Data<AuthService<PostgresUserRepository>>,
+pub async fn handle_login(
+    pool: web::Data<PgPool>,
     req: web::Json<AuthRequest>,
 ) -> Result<HttpResponse, AppError> {
-    let token = auth_service.login(req.email.clone(), req.password.clone()).await?;
+    let token = login_user(
+        pool.get_ref(),
+        req.email.clone(),
+        req.password.clone()
+    ).await?;
+    
     Ok(HttpResponse::Ok().json(json!({ "token": token })))
 }

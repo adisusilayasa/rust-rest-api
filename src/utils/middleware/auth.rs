@@ -7,7 +7,7 @@ use actix_web::{dev::Service, error::ErrorUnauthorized, http::header, HttpMessag
 use futures_util::future::{LocalBoxFuture, Ready, ready};
 use serde::{Deserialize, Serialize};
 use std::task::{Context, Poll};
-use crate::shared::auth;
+use crate::utils::auth;
 
 pub fn request_logging() -> Logger {
     Logger::new("%a \"%r\" %s %b \"%{Referer}i\" \"%{User-Agent}i\" %T")

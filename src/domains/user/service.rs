@@ -1,25 +1,54 @@
 use uuid::Uuid;
-use crate::domains::user::repository::UserRepository;
-use crate::domains::user::dto::UserProfileResponse;
-use crate::shared::error::AppError;
+use sqlx::PgPool;
+use chrono::Utc;
+use crate::domains::user::repository::{find_user_by_id, update_user};
+use crate::domains::user::dto::{UserProfileResponse, create_user_profile_response};
+use crate::utils::error::AppError;
+use super::entity::{User, UpdateProfileRequest};
 
-pub struct UserService<T: UserRepository> {
-    user_repository: T,
+pub async fn get_user_profile(pool: &PgPool, user_id: &str) -> Result<UserProfileResponse, AppError> {
+    let uuid = Uuid::parse_str(user_id)
+        .map_err(|e| AppError::ValidationError(format!("Invalid user ID: {}", e)))?;
+
+    let user = match find_user_by_id(pool, &uuid).await {
+        Ok(Some(user)) => user,
+        Ok(None) => return Err(AppError::NotFoundError(format!("User with ID {} not found", uuid))),
+        Err(e) => return Err(AppError::DatabaseError(sqlx::Error::Protocol(e))),
+    };
+
+    Ok(create_user_profile_response(user))
 }
 
-impl<T: UserRepository> UserService<T> {
-    pub fn new(user_repository: T) -> Self {
-        Self { user_repository }
-    }
+pub async fn update_user_profile(
+    pool: &PgPool,
+    user_id: &str,
+    update_data: &UpdateProfileRequest
+) -> Result<UserProfileResponse, AppError> {
+    let uuid = Uuid::parse_str(user_id)
+        .map_err(|e| AppError::ValidationError(format!("Invalid user ID: {}", e)))?;
 
-    pub async fn get_profile(&self, user_id: &str) -> Result<UserProfileResponse, AppError> {
-        let uuid = Uuid::parse_str(user_id)
-            .map_err(|e| AppError::ValidationError(format!("Invalid user ID: {}", e)))?;
+    let current_user = match find_user_by_id(pool, &uuid).await {
+        Ok(Some(user)) => user,
+        Ok(None) => return Err(AppError::NotFoundError(format!("User with ID {} not found", uuid))),
+        Err(e) => return Err(AppError::DatabaseError(sqlx::Error::Protocol(e))),
+    };
 
-        let user = self.user_repository.find_by_id(&uuid).await
-            .map_err(|e| AppError::DatabaseError(sqlx::Error::Protocol(e.to_string())))?
-            .ok_or_else(|| AppError::NotFoundError(format!("User with ID {} not found", uuid)))?;
+    let updated_user = User {
+        id: current_user.id,
+        email: update_data.email.clone().unwrap_or(current_user.email),
+        name: update_data.name.clone(),
+        phone: update_data.phone.clone(),
+        address: update_data.address.clone(),
+        password_hash: current_user.password_hash,
+        created_at: current_user.created_at,
+        updated_at: Some(Utc::now()),
+        deleted_at: update_data.deleted_at,
+    };
 
-        Ok(UserProfileResponse::from(user))
-    }
+    let result = match update_user(pool, &updated_user).await {
+        Ok(user) => user,
+        Err(e) => return Err(AppError::DatabaseError(sqlx::Error::Protocol(e))),
+    };
+
+    Ok(create_user_profile_response(result))
 }

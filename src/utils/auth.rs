@@ -1,9 +1,10 @@
+use bcrypt::verify;
 use serde::{Deserialize, Serialize};
 use chrono::Utc;
 use jsonwebtoken::{encode, decode, EncodingKey, DecodingKey, Header, Validation};
 use uuid::Uuid;
 use std::env;
-use crate::shared::error::AppError;
+use crate::{domains::user::entity::User, utils::error::AppError};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claims {
@@ -39,4 +40,9 @@ pub fn verify_token(token: &str) -> Result<Claims, AppError> {
     )
     .map(|token_data| token_data.claims)
     .map_err(|_| AppError::AuthenticationError("Invalid token".to_string()))
+}
+
+pub fn verify_user_password(user: &User, password: &str) -> Result<bool, String> {
+    verify(password, &user.password_hash)
+        .map_err(|e| format!("Password verification error: {}", e))
 }

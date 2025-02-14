@@ -1,25 +1,42 @@
-use actix_web::{get, web, HttpResponse};
-use log;
-use crate::domains::user::service::UserService;
-use crate::domains::user::repository::PostgresUserRepository;
-use crate::shared::auth::Claims;
-use crate::shared::error::AppError;
+use actix_web::{get, put, web, HttpRequest };
+use actix_web::HttpResponse;
+use sqlx::PgPool;
+use crate::utils::auth::Claims;
+use crate::utils::error::AppError;
+use crate::domains::user::service::{get_user_profile, update_user_profile};
+use crate::domains::user::entity::UpdateProfileRequest;
 use actix_web::HttpMessage;
 
 #[get("/profile")]
-pub async fn get_profile(
-    req: actix_web::HttpRequest,
-    user_service: web::Data<UserService<PostgresUserRepository>>,
+pub async fn handle_get_profile(
+    req: HttpRequest,
+    pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, AppError> {
     let extensions = req.extensions();
-    let claims = extensions.get::<Claims>()
+    let claims = extensions
+        .get::<Claims>()
         .ok_or_else(|| AppError::AuthenticationError("Invalid token".to_string()))?;
 
-    match user_service.get_profile(&claims.sub).await {
-        Ok(user) => Ok(HttpResponse::Ok().json(user)),
-        Err(e) => {
-            log::error!("Failed to get user profile: {}", e);
-            Err(e)
-        }
-    }
+    let profile = get_user_profile(pool.get_ref(), &claims.sub).await?;
+    Ok(HttpResponse::Ok().json(profile))
+}
+
+#[put("/profile")]
+pub async fn handle_update_profile(
+    req: HttpRequest,
+    pool: web::Data<PgPool>,
+    update_data: web::Json<UpdateProfileRequest>,
+) -> Result<HttpResponse, AppError> {
+    let extensions = req.extensions();
+    let claims = extensions
+        .get::<Claims>()
+        .ok_or_else(|| AppError::AuthenticationError("Invalid token".to_string()))?;
+
+    let profile = update_user_profile(
+        pool.get_ref(),
+        &claims.sub,
+        &update_data.0
+    ).await?;
+    
+    Ok(HttpResponse::Ok().json(profile))
 }
