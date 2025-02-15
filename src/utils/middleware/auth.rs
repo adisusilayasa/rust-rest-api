@@ -1,23 +1,17 @@
 use actix_web::dev::{ServiceRequest, ServiceResponse};
 use actix_web::Error;
-use actix_web::middleware::Logger;
-use log::info;
+use log::{info, warn, error, debug};
 use actix_web::dev::Transform;
-use actix_web::{dev::Service, error::ErrorUnauthorized, http::header, HttpMessage};
+use actix_web::{dev::Service, http::header, HttpMessage};
 use futures_util::future::{LocalBoxFuture, Ready, ready};
 use serde::{Deserialize, Serialize};
 use std::task::{Context, Poll};
 use crate::utils::auth;
+use crate::utils::response::{Response, ResponseBuilder};
 
 
 #[derive(Default, Clone)]
 pub struct LoggingMiddleware;
-
-impl LoggingMiddleware {
-    pub fn new() -> Self {
-        LoggingMiddleware
-    }
-}
 
 impl<S, B> Transform<S, ServiceRequest> for LoggingMiddleware
 where
@@ -56,20 +50,29 @@ where
         let start = std::time::Instant::now();
         let method = req.method().clone();
         let path = req.path().to_owned();
+        let remote_addr = req.connection_info().realip_remote_addr()
+            .unwrap_or("unknown").to_string();
+
+        debug!("Incoming request: {} {} from {}", method, path, remote_addr);
 
         let fut = self.service.call(req);
 
         Box::pin(async move {
             let res = fut.await?;
             let duration = start.elapsed();
+            let status = res.status();
             
-            info!(
-                "{} {} - {} - {}ms",
-                method,
-                path,
-                res.status().as_u16(),
-                duration.as_millis()
-            );
+            if status.is_success() {
+                info!(
+                    "Request completed: {} {} - {} - {}ms from {}",
+                    method, path, status.as_u16(), duration.as_millis(), remote_addr
+                );
+            } else {
+                warn!(
+                    "Request failed: {} {} - {} - {}ms from {}",
+                    method, path, status.as_u16(), duration.as_millis(), remote_addr
+                );
+            }
 
             Ok(res)
         })
@@ -126,28 +129,55 @@ where
     }
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
+        let path = req.path().to_owned();
+        let method = req.method().clone();
+        let remote_addr = req.connection_info().realip_remote_addr()
+            .unwrap_or("unknown").to_string();
+
+        debug!("Checking authentication for {} {} from {}", method, path, remote_addr);
+
         let auth_header = match req.headers().get(header::AUTHORIZATION) {
             Some(header) => header,
             None => {
-                return Box::pin(ready(Err(ErrorUnauthorized("No authorization header"))));
+                warn!("No authorization header in request from {}", remote_addr);
+                return Box::pin(ready(Err(
+                    actix_web::error::InternalError::from_response(
+                        "Unauthorized",
+                        Response::unauthorized("No authorization header provided")
+                    ).into()
+                )));
             }
         };
 
         let auth_str = match auth_header.to_str() {
             Ok(str) => str,
             Err(_) => {
-                return Box::pin(ready(Err(ErrorUnauthorized("Invalid authorization header"))));
+                error!("Invalid authorization header format from {}", remote_addr);
+                return Box::pin(ready(Err(
+                    actix_web::error::InternalError::from_response(
+                        "Unauthorized",
+                        Response::unauthorized("Invalid authorization header format")
+                    ).into()
+                )));
             }
         };
 
         if !auth_str.starts_with("Bearer ") {
-            return Box::pin(ready(Err(ErrorUnauthorized("Invalid authorization header format"))));
+            warn!("Invalid token format from {}: missing Bearer prefix", remote_addr);
+            return Box::pin(ready(Err(
+                actix_web::error::InternalError::from_response(
+                    "Unauthorized",
+                    Response::unauthorized("Invalid authorization header format")
+                ).into()
+            )));
         }
 
         let token = &auth_str["Bearer ".len()..];
         
         match auth::verify_token(token) {
             Ok(claims) => {
+                debug!("Successfully authenticated user {} for {} {}", 
+                    claims.sub, method, path);
                 req.extensions_mut().insert(claims);
                 let fut = self.service.call(req);
                 Box::pin(async move {
@@ -155,8 +185,14 @@ where
                     Ok(res)
                 })
             }
-            Err(_) => {
-                Box::pin(ready(Err(ErrorUnauthorized("Invalid token"))))
+            Err(e) => {
+                error!("Token verification failed from {}: {}", remote_addr, e);
+                Box::pin(ready(Err(
+                    actix_web::error::InternalError::from_response(
+                        "Unauthorized",
+                        Response::unauthorized(&format!("Invalid or expired token: {}", e))
+                    ).into()
+                )))
             }
         }
     }

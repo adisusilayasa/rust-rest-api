@@ -12,26 +12,29 @@ use crate::utils::middleware::logger::LoggingMiddleware;
 use crate::domains::auth::route as auth_routes;
 use crate::domains::user::route as user_routes;
 use crate::domains::health::route as health_routes;
+use crate::domains::root::controller::welcome;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
     setup_logger();
 
+    log::info!("Starting application...");
+    
     let port = config::get_port();
+    log::info!("Using port: {}", port);
     
     let pool = db::establish_connection()
         .await
         .expect("Failed to connect to database");
+    log::info!("Database connection established");
 
     let pool = web::Data::new(pool);
     let server_addr = format!("0.0.0.0:{}", port);  // Changed from 127.0.0.1 to 0.0.0.0
 
     let server = HttpServer::new(move || {
-        // Add to your imports
         use actix_cors::Cors;
         
-        // In your HttpServer::new closure
         App::new()
             .wrap(Cors::default()
                 .allow_any_origin()
@@ -41,6 +44,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::default())
             .wrap(LoggingMiddleware::new())
             .app_data(pool.clone())
+            .service(welcome)  // Add this line
             .configure(health_routes::configure)
             .service(
                 web::scope("/api")

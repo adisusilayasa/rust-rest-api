@@ -10,8 +10,12 @@ use crate::utils::auth::verify_user_password;
 pub async fn register_user(
     pool: &PgPool,
     email: String,
-    password: String
+    name: Option<&str>,
+    address: Option<&str>,
+    phone: Option<&str>,
+    password: &str
 ) -> Result<User, AppError> {
+    // Check if email already exists
     if let Ok(Some(_)) = find_user_by_email(pool, &email).await {
         return Err(AppError::ValidationError("Email already exists".to_string()));
     }
@@ -22,9 +26,9 @@ pub async fn register_user(
     let user = User {
         id: uuid::Uuid::new_v4(),
         email,
-        name: None,
-        phone: None,
-        address: None,
+        name: name.map(String::from),
+        phone: phone.map(String::from),
+        address: address.map(String::from),
         password_hash,
         created_at: Utc::now(),
         updated_at: None,
@@ -37,16 +41,16 @@ pub async fn register_user(
 
 pub async fn login_user(
     pool: &PgPool,
-    email: String,
-    password: String
+    email: &str,
+    password: &str
 ) -> Result<String, AppError> {
-    let user = match find_user_by_email(pool, &email).await {
+    let user = match find_user_by_email(pool, email).await {
         Ok(Some(user)) => user,
         Ok(None) => return Err(AppError::AuthenticationError("Invalid credentials".to_string())),
         Err(e) => return Err(AppError::DatabaseError(sqlx::Error::Protocol(e))),
     };
 
-    if !verify_user_password(&user, &password)
+    if !verify_user_password(&user, password)
         .map_err(|e| AppError::InternalError(e))? {
         return Err(AppError::AuthenticationError("Invalid credentials".to_string()));
     }
