@@ -4,8 +4,8 @@ WORKDIR /usr/src/app
 COPY . .
 
 # Build-time arguments with default values
-ARG DATABASE_URL="postgresql://app_user:inipasswordnya@db:5432/rust_rest"
-ARG JWT_SECRET="your_jwt_secret_here"
+ARG DATABASE_URL
+ARG JWT_SECRET
 ARG PORT="8080"
 
 # Set environment variables for the build
