@@ -18,6 +18,8 @@ chrono = { version = "0.4", features = ["serde"] }
 validator = { version = "0.16", features = ["derive"] }
 async-trait = "0.1"
 derive_more = "0.99"
+actix-cors = "0.6"
 futures-util = "0.3"
+lazy_static = "1.4"
 log = "0.4"
 thiserror = "1.0"

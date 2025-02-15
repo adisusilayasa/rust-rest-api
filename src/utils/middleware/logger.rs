@@ -23,10 +23,6 @@ pub fn setup_logger() {
 }
 
 
-pub fn request_logging() -> Logger {
-    Logger::new("%a \"%r\" %s %b \"%{Referer}i\" \"%{User-Agent}i\" %T")
-}
-
 #[derive(Default, Clone)]
 pub struct LoggingMiddleware;
 

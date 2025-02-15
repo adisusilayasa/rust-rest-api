@@ -9,9 +9,6 @@ use serde::{Deserialize, Serialize};
 use std::task::{Context, Poll};
 use crate::utils::auth;
 
-pub fn request_logging() -> Logger {
-    Logger::new("%a \"%r\" %s %b \"%{Referer}i\" \"%{User-Agent}i\" %T")
-}
 
 #[derive(Default, Clone)]
 pub struct LoggingMiddleware;

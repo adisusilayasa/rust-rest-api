@@ -1,17 +1,5 @@
 # Rust REST API
 
-A modern REST API built with Rust, following clean architecture principles and best practices.
-
-## Features
-
-- Clean Architecture with Domain-Driven Design
-- JWT Authentication with middleware protection
-- PostgreSQL integration with SQLx
-- RESTful endpoints
-- Structured error handling
-- Logging middleware
-- Hot reload development support
-
 ## Tech Stack
 
 - Actix-web: Web framework
@@ -24,43 +12,17 @@ A modern REST API built with Rust, following clean architecture principles and b
 - UUID: Unique identifiers
 - env_logger: Logging
 
-## Project Structure
-
-```plaintext
-src/
-├── config/           # Configuration management
-├── db/              # Database connection handling
-├── domains/         # Domain-driven modules
-│   ├── auth/       # Authentication domain
-│   │   ├── controller.rs
-│   │   ├── route.rs
-│   │   └── service.rs
-│   └── user/       # User domain
-│       ├── controller.rs
-│       ├── dto.rs
-│       ├── entity.rs
-│       ├── repository.rs
-│       ├── route.rs
-│       └── service.rs
-└── utils/          # Shared utilities
-    ├── auth.rs     # Authentication utilities
-    ├── error.rs    # Error handling
-    └── middleware/ # Middleware components
-```
-
-## Getting Started
-
-### Prerequisites
+## Prerequisites
 
 - Rust (latest stable)
 - PostgreSQL
-- SQLx CLI (`cargo install sqlx-cli`)
+- Docker (optional)
 
-### Installation
+## Running Locally
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/adisusilayasa/rust-rest-api.git
 cd rust-rest
 ```
 
@@ -69,59 +31,57 @@ cd rust-rest
 cp .env.example .env
 ```
 
-3. Update the `.env` file with your configuration:
-```plaintext
-DATABASE_URL=postgresql://app_user:password@localhost:5432/rust_rest
-JWT_SECRET=your_jwt_secret_key
-PORT=8080
+3. Update the `.env` file with your database credentials
+
+4. Generate SQLx prepare file:
+```bash
+cargo sqlx prepare
 ```
 
-4. Setup the database:
+5. Run the migrations:
 ```bash
 sqlx database create
 sqlx migrate run
 ```
 
-5. Run the project:
+6. Build and run the project:
 ```bash
 cargo run
 ```
 
-## API Documentation
-
-The API is available at `http://localhost:8080/api`
-
-### Available Endpoints
-
-#### Authentication
-- `POST /api/auth/register` - Register a new user
-- `POST /api/auth/login` - Login user
-
-#### User Management
-- `GET /api/user/profile` - Get user profile (Protected)
-- `PUT /api/user/profile` - Update user profile (Protected)
-
-### Authentication
-
-Protected endpoints require a JWT token in the Authorization header:
+## Running with Docker
 ```
-Authorization: Bearer <token>
-```
+### Using Docker directly
 
-## Development
-
-Run with hot reload:
+1. Generate SQLx prepare file first:
 ```bash
-cargo watch -x run
+cargo sqlx prepare
 ```
 
-## Testing
-
-Run the tests:
+2. Build the Docker image:
 ```bash
-cargo test
+docker build -t rust-rest-api .
 ```
 
-## License
+3. Run the container:
+```bash
+docker run -p 8080:8080 \
+  -e DATABASE_URL="postgresql://<username>:<password>@host.docker.internal:5432/rust_rest" \
+  -e JWT_SECRET="your_secret_key" \
+  -e PORT="8080" \
+  rust-rest-api
+```
 
-This project is licensed under the MIT License - see the LICENSE file for details
+## API Endpoints
+
+- Health Check: `GET /health`
+- Authentication: `POST /api/auth/login`
+- User Registration: `POST /api/auth/register`
+- User Profile: `GET /api/users/profile`
+- Update Profile: `PUT /api/users/profile`
+
+## Environment Variables
+
+- `DATABASE_URL`: PostgreSQL connection string
+- `JWT_SECRET`: Secret key for JWT tokens
+- `PORT`: Server port (default: 8080)
