@@ -1,6 +1,5 @@
 use actix_web::{HttpResponse, http::StatusCode};
 use serde::Serialize;
-use serde_json::json;
 
 #[derive(Debug, Serialize)]
 pub struct ApiResponse<T>

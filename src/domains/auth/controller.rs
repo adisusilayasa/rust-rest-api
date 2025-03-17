@@ -1,4 +1,5 @@
-use actix_web::{post, web, HttpResponse};
+use actix_web::http::StatusCode;
+use actix_web::{post, web, HttpResponse};  // Add StatusCode import
 use serde::Deserialize;
 use serde_json::json;
 use sqlx::PgPool;
@@ -106,6 +107,17 @@ pub async fn handle_login(
         Err(AppError::AuthenticationError(e)) => {
             warn!("Authentication failed: {}", e);
             Ok(Response::unauthorized(&e))
+        },
+        Err(AppError::RateLimitExceeded(e)) => {
+            warn!("Rate limit exceeded for user: {}", req.email);
+            Ok(HttpResponse::TooManyRequests().json(json!({
+                "status": "error",
+                "code": StatusCode::TOO_MANY_REQUESTS.as_u16(),
+                "message": e,
+                "data": {
+                    "retry_after": 300
+                }
+            })))
         },
         Err(AppError::ValidationError(e)) => {
             warn!("Login validation error: {}", e);
